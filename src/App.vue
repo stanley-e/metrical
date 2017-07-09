@@ -14,7 +14,7 @@
         <button v-on:click="addItem()">ADD</button>
       </div>
     </div>
-      <variable-display v-for="(value,index) in list" v-bind:variable="value[1]" ></variable-display>
+      <variable-display v-for="(value,index) in list" :key="value" v-bind:variable="value[1]"></variable-display>
     </div>
   </div>
 </div>
