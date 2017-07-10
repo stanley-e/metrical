@@ -71,7 +71,7 @@ export class AccessContext {
         retrievedVariable = current.getMember(address[i])
       }
       this.onAccess.trigger(retrievedVariable)
-      current = retrievedVariable.evaluate(chain)
+      current = retrievedVariable.getValue(chain)
     }
     return current
   }
@@ -79,47 +79,64 @@ export class AccessContext {
     return this.get(address, this.variable)
   }
 }
-
-export class MetVariable {
-  constructor (formula, interpreter, namespace) {
+class MetBaseVariable {
+  constructor (namespace) {
     this.value = null
     this.error = null
     this.inError = false
-    this.isUpToDate = false
-    this.formula = formula || ''
-    this.immediateDependants = new Set()
-    this.immediateDependencies = new Set()
-    this.interpreter = interpreter
-    this.namespace = namespace
-    this.group = null
     this.name = null
-    this.namespace = namespace
+    this.owningObject = null
+    this.isUpToDate = false
+    this.immediateDependants = new Set()
   }
-  registerGroup (metObj, key) {
-    // This is to properly get the name address of a specific variable in
-    // an object. Note must also be defined on MetObject
-    if (this.group === null) {
-      this.group = metObj
+  getValue () {
+    return this.value
+  }
+  setValue (value) {
+    this.value = value
+    this.isUpToDate = true
+    var dependants = this.immediateDependants.keys()
+    for (let each of dependants) {
+      each.recalculate()
+    }
+  }
+  registerOwningObject (obj, key) {
+    if (this.owningObject == null && this.name == null) {
       this.name = key
+      this.owningObject = obj
     } else {
-      throw Error('A variable cannot exist on multiple objects at once')
+      throw new Error('Cannot set owner object of variable twice')
     }
   }
   getAddress () {
-    // Need to make sure that error handling is handled after the group
-    // is already registered. Passing it through the constructor might be
-    // needed
     var value = this
     var address = []
     while (value !== this.namespace) {
       address.push(value.name)
-      value = value.getGroup()
+      value = value.getOwningObject()
     }
     address.reverse()
     return address
   }
-  getGroup () {
-    return this.group
+  getOwningObject () {
+    return this.OwningObject
+  }
+}
+
+export class MetSetVariable extends MetBaseVariable {
+  constructor (initialValue, namespace) {
+    super(namespace)
+    this.setValue(initialValue)
+  }
+}
+
+export class MetInterpretedVariable extends MetBaseVariable {
+  constructor (formula, interpreter, namespace) {
+    super(namespace)
+    this.formula = formula || ''
+    this.immediateDependencies = new Set()
+    this.interpreter = interpreter
+    this.namespace = namespace
   }
   clearDependencies () {
     var dependencies = this.immediateDependencies.keys()
@@ -138,47 +155,40 @@ export class MetVariable {
   getDependants () {
     return this.immediateDependants.keys()
   }
-  markProcessing () {
+  markOutdated () {
     if (this.isUpToDate === true) {
       this.isUpToDate = false
       var dependants = this.immediateDependants.keys()
       for (let each of dependants) {
-        each.markProcessing()
-      }
-    }
-  }
-  unmarkProcessing () {
-    this.isUpToDate = true
-    var dependants = this.immediateDependants.keys()
-    for (let each of dependants) {
-      if (each.isUpToDate === false) {
-        each.recalculate()
+        each.markOutdated()
       }
     }
   }
   setFormula (x) {
     this.formula = x
-    this.markProcessing()
+    this.recalculate()
   }
   recalculate (chain) {
-    this.markProcessing()
+    this.markOutdated()
     // Reset
     this.clearDependencies()
     this.error = null
     this.inError = false
+
     chain = chain || []
     var variableHandle = new AccessContext(this.namespace, chain.concat(this), this)
     variableHandle.onAccess.subscribe(this, this.addDependency)
     try {
       chain = loopCheck(this, chain)
-      this.value = this.interpreter(variableHandle, this.formula)
+      var newValue = this.interpreter(variableHandle, this.formula)
     } catch (error) {
       this.error = error
       this.inError = true
     }
-    this.unmarkProcessing()
+    newValue = newValue || null
+    this.setValue(newValue)
   }
-  evaluate (chain) {
+  getValue (chain) {
     if (this.inError) {
       throw this.error
     }
@@ -186,7 +196,7 @@ export class MetVariable {
       return this.value
     } else {
       this.recalculate(chain)
-      return this.evaluate()
+      return this.getValue()
     }
   }
 }
@@ -194,14 +204,15 @@ export class MetVariable {
 export class MetObject {
   constructor () {
     this.members = new Map()
+    this.owningObject = null
   }
   createMember (key, variable) {
     this.members.set(key, variable)
-    variable.registerGroup(this, key)
+    variable.registerOwningObject(this, key)
     return variable
   }
-  registerGroup (owner) {
-    this.group = owner
+  registerOwningObject (owner) {
+    this.OwningObject = owner
   }
   getMember (key) {
     var v = this.members.get(key)

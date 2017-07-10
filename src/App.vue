@@ -63,7 +63,8 @@ export default {
   methods: {
     addItem: function () {
       if (this.nameIsValid) {
-        var newVariable = this.runtime.addVariable([this.newName])
+        var newVariable = this.runtime.addInterpretedVariable([this.newName])
+        console.log(newVariable)
         this.list.push([this.newName, newVariable])
         this.newName = ''
       }
@@ -95,6 +96,9 @@ export default {
     // of the first one since that will be the one where it is defined
     // If a variable is called multiple times then it should raise an error.
     // Each should just have their name key & a point back to their parent
+  },
+  created: function () {
+    this.runtime.addFixedVariable('PI', Math.PI)
   }
 }
 </script>

@@ -1,5 +1,5 @@
 import {Lexer} from './lexer.js'
-import {AccessContext, MetObject, MetVariable} from './reactive-reference.js'
+import {AccessContext, MetObject, MetSetVariable, MetInterpretedVariable} from './reactive-reference.js'
 import {PrattParser, infixChainable, prefixChain, prefix, literal} from './pratt-parser.js'
 
 var whitespace = new function () {
@@ -211,12 +211,19 @@ export function interpret (context, formula) {
 }
 
 export class MetricalRuntime extends MetObject {
-  addVariable (path, formula) {
+  addVariable (path, newVariable) {
     path = [].concat(path)
     var lastName = path.pop()
     var v = (new AccessContext(this)).get(path)
-    var newVar = new MetVariable(formula, interpret, this)
-    v.createMember(lastName, newVar)
-    return newVar
+    return v.createMember(lastName, newVariable)
   }
+  addInterpretedVariable (path, formula) {
+    var newVar = new MetInterpretedVariable(formula, interpret, this)
+    return this.addVariable(path, newVar)
+  }
+  addFixedVariable (path, value) {
+    var newVar = new MetSetVariable(value, this)
+    return this.addVariable(path, newVar)
+  }
+
 }

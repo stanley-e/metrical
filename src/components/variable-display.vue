@@ -21,15 +21,15 @@
       <div class="cell">value</div>
       <div class="cell">{{variable.value}}</div>
     </div>
-  </div>
-  <div>
-    <span v-if="!variable.isUpToDate">
+    <div>
+      <span v-if="!variable.isUpToDate">
       <span style="color:red;font-size:1.1em;">out of date</span>
     </span>
     <div v-if="variable.error">
       <span style="color:red;font-size:1.1em;">{{variable.error.message}}</span>
     </div>
   </div>
+</div>
 </div>
 </template>
 
@@ -38,9 +38,7 @@ export default {
   name: 'variable-display',
   props: ['variable'],
   data: function () {
-    return {
-      msg: 'Welcome to Your Vue.js App'
-    }
+    return {}
   }
 }
 </script>
